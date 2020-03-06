@@ -15,92 +15,99 @@ from bokeh.sampledata.stocks import AAPL
 from bokeh.transform import cumsum
 
 # Timeseries
+import math
+import gc
+import numpy as np
+import pandas as pd
+from matplotlib import pyplot
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+from keras.models import Sequential
+from keras.layers import Dense, Flatten, Dropout
+from keras.layers.convolutional import Conv1D, MaxPooling1D
 
-dates = np.array(AAPL['date'], dtype=np.datetime64)
-source = ColumnDataSource(data=dict(date=dates, close=AAPL['adj_close']))
 
-p = figure(plot_height=110, tools="", toolbar_location=None, #name="line",
-           x_axis_type="datetime", x_range=(dates[1500], dates[2500]), sizing_mode="scale_width")
+n_sample = 1
 
-p.line('date', 'close', source=source, line_width=2, alpha=0.7)
-p.yaxis.axis_label = 'Traffic'
-p.background_fill_color="#f5f5f5"
-p.grid.grid_line_color="white"
 
-select = figure(plot_height=50, plot_width=800, y_range=p.y_range,
-                x_axis_type="datetime", y_axis_type=None,
-                tools="", toolbar_location=None, sizing_mode="scale_width")
+# Load the data  
+frame = pd.read_csv('dataframe1.csv')
+# formated data
+data = np.hstack((frame.values.astype('float32')[:, :-2], frame.values.astype('float32')[:, [-2]]))
 
-range_rool = RangeTool(x_range=p.x_range)
-range_rool.overlay.fill_color = "navy"
-range_rool.overlay.fill_alpha = 0.2
+# normalize data 
+scaler = MinMaxScaler(feature_range=(0, 1))
 
-select.line('date', 'close', source=source)
-select.ygrid.grid_line_color = None
-select.add_tools(range_rool)
-select.toolbar.active_multi = range_rool
-select.background_fill_color="#f5f5f5"
-select.grid.grid_line_color="white"
-select.x_range.range_padding = 0.01
+scaled = scaler.fit_transform(data)
 
-layout = column(p, select, sizing_mode="scale_width", name="line")
+iput, oput = scaled[:,:-1], scaled[:,[-1]]
+
+# data split
+train_x, test_x, train_y, test_y = train_test_split(iput, oput, test_size=0.5, shuffle=True)
+
+# reshape data for model
+train_x = train_x.reshape(n_sample, len(train_x), iput.shape[1])
+test_x = test_x.reshape(n_sample, len(test_x), iput.shape[1])
+
+train_y = train_y.reshape(n_sample, 31912)
+test_y = test_y.reshape(n_sample, 31912)
+
+gc.collect()
+
+n_in, n_out, n_feature = train_x.shape[1], train_y.shape[1], train_x.shape[2]
+
+# training model
+model = Sequential()
+model.add(Conv1D(
+        filters=2,
+        kernel_size=7, 
+        activation='relu', 
+        input_shape=(n_in, n_feature)
+    )
+)
+model.add(MaxPooling1D(pool_size=2))
+model.add(Dropout(0.2)) #0.2 return better
+model.add(Flatten())
+model.add(Dense(64, activation='relu'))
+model.add(Dense(n_out))
+model.compile(optimizer='adam', loss='mae', metrics=['mse', 'mae'])
+
+
+#model.save_weights(str('depth_weight1.212')+'.h5')
+#model.load_weights('depth_weight1.253.h5')
+
+mdl = model.fit(
+        train_x, train_y, batch_size=32, validation_data=(test_x, test_y),
+        epochs=30, shuffle=False, verbose=2)
+
+pyplot.figure(plot_height=110, tools="", toolbar_location=None, #name="line",
+           x_axis_type="datetime")
+pyplot.plot(mdl.history['loss'], label='Train')
+pyplot.plot(mdl.history['val_loss'], label='Test')
+pyplot.legend()
+pyplot.show()
+
+layout = column(sizing_mode="scale_width", name="line")
 
 curdoc().add_root(layout)
 
 # Donut chart
 
-x = Counter({ 'United States': 157, 'United Kingdom': 93, 'Japan': 89, 'China': 63,
-              'Germany': 44, 'India': 42, 'Italy': 40, 'Australia': 35, 'Brazil': 32,
-              'France': 31, 'Taiwan': 31  })
 
-data = pd.DataFrame.from_dict(dict(x), orient='index').reset_index().rename(index=str, columns={0:'value', 'index':'country'})
-data['angle'] = data['value']/sum(x.values()) * 2*pi
-data['color'] = Spectral11
 
-region = figure(plot_height=350, toolbar_location=None, outline_line_color=None, sizing_mode="scale_both", name="region", x_range=(-0.4, 1))
-
-region.annular_wedge(x=-0, y=1, inner_radius=0.2, outer_radius=0.32,
-                  start_angle=cumsum('angle', include_zero=True), end_angle=cumsum('angle'),
-                  line_color="white", fill_color='color', legend_group='country', source=data)
-
-region.axis.axis_label=None
-region.axis.visible=False
-region.grid.grid_line_color = None
-region.legend.label_text_font_size = "0.7em"
-region.legend.spacing = 1
-region.legend.glyph_height = 15
-region.legend.label_height = 15
-
-curdoc().add_root(region)
+curdoc().add_root()
 
 # Bar chart
 
-plats = ("IOS", "Android", "OSX", "Windows", "Other")
-values = (35, 22, 13, 26, 4)
-platform = figure(plot_height=350, toolbar_location=None, outline_line_color=None, sizing_mode="scale_both", name="platform",
-                  y_range=list(reversed(plats)), x_axis_location="above")
-platform.x_range.start = 0
-platform.ygrid.grid_line_color = None
-platform.axis.minor_tick_line_color = None
-platform.outline_line_color = None
 
-platform.hbar(left=0, right=values, y=plats, height=0.8)
 
-curdoc().add_root(platform)
+curdoc().add_root()
 
 # Table
 
-source = ColumnDataSource(data=mpg[:6])
-columns = [
-    TableColumn(field="cyl", title="Counts"),
-    TableColumn(field="cty", title="Uniques",
-                formatter=StringFormatter(text_align="center")),
-    TableColumn(field="hwy", title="Rating",
-                formatter=NumberFormatter(text_align="right")),
-]
-table = DataTable(source=source, columns=columns, height=210, width=330, name="table", sizing_mode="scale_both")
 
-curdoc().add_root(table)
+curdoc().add_root()
 
 # Setup
 
