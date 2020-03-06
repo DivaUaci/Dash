@@ -88,35 +88,3 @@ pyplot.plot(mdl.history['val_loss'], label='Test')
 pyplot.legend()
 pyplot.show()
 
-layout = column(sizing_mode="scale_width", name="line")
-
-curdoc().add_root(layout)
-
-# Donut chart
-
-
-
-curdoc().add_root()
-
-# Bar chart
-
-
-
-curdoc().add_root()
-
-# Table
-
-
-curdoc().add_root()
-
-# Setup
-
-curdoc().title = "Bokeh Dashboard"
-curdoc().template_variables['stats_names'] = ['users', 'new_users', 'time', 'sessions', 'sales']
-curdoc().template_variables['stats'] = {
-    'users'     : {'icon': 'user',        'value': 11200, 'change':  4   , 'label': 'Total Users'},
-    'new_users' : {'icon': 'user',        'value': 350,   'change':  1.2 , 'label': 'New Users'},
-    'time'      : {'icon': 'clock-o',     'value': 5.6,   'change': -2.3 , 'label': 'Total Time'},
-    'sessions'  : {'icon': 'user',        'value': 27300, 'change':  0.5 , 'label': 'Total Sessions'},
-    'sales'     : {'icon': 'dollar-sign', 'value': 8700,  'change': -0.2 , 'label': 'Average Sales'},
-}
