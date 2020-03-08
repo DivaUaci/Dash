@@ -1,20 +1,3 @@
-from collections import Counter
-from math import pi
-
-import numpy as np
-import pandas as pd
-
-from bokeh.io import curdoc
-from bokeh.layouts import column
-from bokeh.models import (ColumnDataSource, DataTable, NumberFormatter,
-                          RangeTool, StringFormatter, TableColumn,)
-from bokeh.palettes import Spectral11
-from bokeh.plotting import figure
-from bokeh.sampledata.autompg2 import autompg2 as mpg
-from bokeh.sampledata.stocks import AAPL
-from bokeh.transform import cumsum
-
-# Timeseries
 import math
 import gc
 import numpy as np
@@ -26,11 +9,17 @@ from sklearn.metrics import mean_squared_error
 from keras.models import Sequential
 from keras.layers import Dense, Flatten, Dropout
 from keras.layers.convolutional import Conv1D, MaxPooling1D
+from bokeh.plotting import figure,output_file,show, output_notebook
+from bokeh.layouts import column
+from bokeh.models import Slider
+from bokeh.io import output_file, show
+from bokeh.models.widgets import FileInput
+
 
 
 n_sample = 1
 
-
+file_input = FileInput()
 # Load the data  
 frame = pd.read_csv('dataframe1.csv')
 # formated data
@@ -79,12 +68,25 @@ model.compile(optimizer='adam', loss='mae', metrics=['mse', 'mae'])
 
 mdl = model.fit(
         train_x, train_y, batch_size=32, validation_data=(test_x, test_y),
-        epochs=30, shuffle=False, verbose=2)
+        epochs=10, shuffle=False, verbose=2)
 
-pyplot.figure(plot_height=110, tools="", toolbar_location=None, #name="line",
-           x_axis_type="datetime")
-pyplot.plot(mdl.history['loss'], label='Train')
-pyplot.plot(mdl.history['val_loss'], label='Test')
-pyplot.legend()
-pyplot.show()
+output_notebook()
 
+output_file("stats.html")
+
+TOOLTIPS = [
+    ("index", "$index"),
+    ("(x,y)", "($x, $y)"),
+    ("desc", "@desc"),
+]
+
+p = figure(tooltips=TOOLTIPS)
+
+p.line([1,2,3,4,5,6,7,8,9,10], mdl.history['loss'], line_color="blue")
+p.line([1,2,3,4,5,6,7,8,9,10], mdl.history['val_loss'], line_color="red")
+
+slider = Slider(start=0.1, end=2, step=0.01, value=0.2)
+
+
+
+show(column(p, slider, file_input))
